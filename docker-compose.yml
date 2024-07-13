@@ -7,8 +7,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "80:80"
-    environment:
-      - FA_USER_COLLECTION=users
-      - FA_DB_NAME=ai-trends
-      - FA_MONGO_URI=mongodb+srv://fa:R9y8pdxXzuw2JT6@ai-trends.onofaev.mongodb.net/?retryWrites=true&w=majority&appName=ai-trends
+    env_file:
+      - .env
     restart: unless-stopped

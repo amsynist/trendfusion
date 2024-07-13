@@ -1,11 +1,16 @@
+# Use Python 3.11 as the base image
 FROM python:3.11
 
-WORKDIR /trendfusion
+# Set the working directory
+WORKDIR /code
 
-COPY ./requirements.txt /trendfusion/requirements.txt
+# Copy the requirements file and install dependencies
+COPY ./requirements.txt /code/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /trendfusion/requirements.txt
+# Copy the application code
+COPY ./app /code/app
 
-COPY ./app /trendfusion/app
-
+# S# Command to run the FastAPI application
 CMD ["fastapi", "run", "app/main.py", "--port", "80"]
+

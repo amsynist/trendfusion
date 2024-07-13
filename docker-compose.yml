@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - FA_USER_COLLECTION=users
+      - FA_DB_NAME=ai-trends
+      - FA_MONGO_URI=mongodb+srv://fa:R9y8pdxXzuw2JT6@ai-trends.onofaev.mongodb.net/?retryWrites=true&w=majority&appName=ai-trends
+    restart: unless-stopped

@@ -1,4 +1,4 @@
-# TrendFusion 🩳
+# 🩳  TrendFusion
 
 
 TrendFusion is a core repo that provides APIs for fashion recommendations, AI-driven product insights, and search functionalities using large language models (LLMs), Haystack, and trend knowledge.

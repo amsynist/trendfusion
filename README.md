@@ -1,6 +1,6 @@
 # Local Development Guide
 
-## Setup opensearch locally
+## 1. Setup opensearch locally
 
 #### Pull Openstack images
 

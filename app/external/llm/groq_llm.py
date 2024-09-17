@@ -27,3 +27,16 @@ class GroqLLM(BaseLLM):
             model=self.model,
         )
         return chat_completion.choices[0].message.content
+
+    async def chat(self, messages):
+        chat_completion = await self.client.chat.completions.create(
+            messages=messages,
+            model=self.model,
+            temperature=1,
+            max_tokens=1024,
+            top_p=1,
+            stream=False,
+            response_format={"type": "json_object"},
+            stop=None,
+        )
+        return chat_completion.choices[0].message.content

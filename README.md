@@ -1,11 +1,8 @@
-# 🩳  TrendFusion
-
+# 🩳 TrendFusion
 
 TrendFusion is a core repo that provides APIs for fashion recommendations, AI-driven product insights, and search functionalities using large language models (LLMs), Haystack, and trend knowledge.
 
-
-
-##  Project Structure
+## Project Structure
 
 ```xml
 ├── __init__.py
@@ -30,10 +27,7 @@ TrendFusion is a core repo that provides APIs for fashion recommendations, AI-dr
     └── base.py
 ```
 
-
 ## Local Development Guide
-
-
 
 ### 2. Setup Environment Variables
 
@@ -96,17 +90,15 @@ services:
 Use Docker Compose to build and run the application and OpenSearch services:
 
 ```sh
-docker-compose up --build
+docker compose up --build
 ```
-
-
 
 ### 6. Development Tips
 
 - **Rebuild Docker Containers**: If you make changes to the Dockerfile or dependencies, you can rebuild the Docker containers using:
 
   ```sh
-  docker-compose up --build
+  docker compose up --build
   ```
 
 - **OpenSearch Dashboard**: Access the OpenSearch dashboard at [http://localhost:5601](http://localhost:5601).

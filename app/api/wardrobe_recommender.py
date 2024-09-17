@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,21 +8,34 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
 from thirdai.neural_db import NeuralDB
 
-from app.external import FA_USER_COLLECTION, LOCAL_TRENDICLES_DIR, GroqLLM
+from app.external import (
+    FA_USER_COLLECTION,
+    FA_WARDROBE_COLLECTION,
+    LOCAL_TRENDICLES_DIR,
+    BaseLLM,
+)
 from app.main import app
-from app.models import AISearchRequest, UserAttrs
+from app.models import Product, UserAttrs, WardrobeRecommendRequest
 
 router = APIRouter()
 # ndb = NeuralDB()
 
-AI_SEARCH_CORE_PROMPT = """
+WARDROBE_RECOMMEND_PROMPT = """
+
+here is my product in my cart ,
+now suggest pr gemerate categories that suits and compleste this 
+
+black shirt ->  lm -> jeans,shorts,tshirts -> open_search
+
+jeans - white - grey -
+shorts  - 
+tshirts 
 You are an expert men's only fashion recommender. 
-You have to recommend clothes for the user based on their profile and user data given, and you get optional trend-related information which you could use for generating query.
-Return the proper description of the cloth in less than 20 words. 
+You should recommend based on wardrobe items and likely going to buy the products we recommend by your search query you generate
+Return the proper description of the cloths that likely going to buy based on his wardrobe items and categories in less than 20 words. 
 The description must contain category, color, and pattern only. 
 Please return answer in query to search in OpenSearch for listing products to user and ensure your response only contains the query and nothing else.
 """
-
 messages = [
     {
         "role": "system",
@@ -59,107 +73,86 @@ def fetch_trend_knowledge(query: str) -> str:
     return trends or "No Trend Knowledge"
 
 
-def paginate_documents(redis, cache_key, results=[], page=1, page_size=10):
-    """
-    Paginate through the retrieved documents.
-
-    """
-    start = (page - 1) * page_size
-    end = start + page_size
-    if not results:
-        print("HERE BLOCK")
-        cached_results = redis.get(cache_key)
-        print(cached_results, ">>>><<<<")
-        if cached_results:
-            results = json.loads(str(cached_results))
-            return results[start:end] if len(results) > end else results
-    return results[start:end] if len(results) > end else results
+async def fetch_wardrobe_items(
+    wardrobe_id: str, db: AsyncIOMotorDatabase, collection_name: str
+) -> List[Product]:
+    collection = db[collection_name]
+    wardrobe = await collection.find_one({"_id": ObjectId(wardrobe_id)})
+    if not wardrobe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Wardrobe not found"
+        )
+    return [Product(**item) for item in wardrobe.get("products", [])]
 
 
-@router.post("/search", status_code=status.HTTP_200_OK)
-async def ai_search(
-    user_request: AISearchRequest,
+@router.post("/recommendations", status_code=status.HTTP_200_OK)
+async def wardrobe_recommendations(
+    wardrobe_request: WardrobeRecommendRequest,
     fa_db: AsyncIOMotorDatabase = Depends(lambda: app.state.fa_db),
-    llm_client: GroqLLM = Depends(lambda: app.state.llm_client),
+    llm_client: BaseLLM = Depends(lambda: app.state.llm_client),
     open_search_retriever: Pipeline = Depends(lambda: app.state.open_search_retriever),
     redis: Redis = Depends(lambda: app.state.redis),
 ):
-    user_id = user_request.user_id
-    user_query = user_request.user_query
+    user_id = wardrobe_request.user_id
+    wardrobe_id = wardrobe_request.existing_wardrobe_id
 
     # Check for cached response first
-    cache_key = str(user_request)
-    # check for cache if results are already loaded else do a fresh query
-    if results := paginate_documents(
-        redis, cache_key, [], user_request.page, user_request.page_size
-    ):
+    cache_key = str(wardrobe_request)
+    cached_result = redis.get(cache_key)
+
+    # Fetch wardrobe items from MongoDB
+    wardrobe_item = await fetch_wardrobe_items(
+        wardrobe_id, fa_db, FA_WARDROBE_COLLECTION
+    )
+    # Generate query based on unique categories of wardrobe items
+    wardrobe_categories = set(
+        f"{item.title}-{item.category}" for item in wardrobe_items
+    )
+    wardrobe_query = " ".join(wardrobe_categories)
+    if cached_result:
         print(f"Cached response found: {cache_key}")
-        return {
-            "products": results,
-            "info": {
-                "page": user_request.page,
-                "page_size": user_request.page_size,
-                "count": len(results),
-            },
-        }
+        return json.loads(str(cached_result))
 
     # Fetch user attributes from MongoDB
     user_attrs = await fetch_user_attrs(user_id, fa_db, FA_USER_COLLECTION)
 
     # Fetch trend content (optional)
     trends = "No Trend Knowledge"
-    if user_request.include_trendicles:
-        trends = fetch_trend_knowledge(user_query + user_attrs)
+    if wardrobe_request.include_trendicles:
+        trends = fetch_trend_knowledge(wardrobe_query + user_attrs)
 
-    llm_client.system_prompt = AI_SEARCH_CORE_PROMPT
+    llm_client.system_prompt = WARDROBE_RECOMMEND_PROMPT
     llm_query = f"""
     {user_attrs}
     Trend Knowledge Base: {trends}
-    User Query: {user_query}
+    Wardrobe Items: {wardrobe_query}
     """
-    core_categories = await llm_client.chat(
-        messages + [{"role": "user", "content": user_query}]
-    )
-    print(llm_query)
-    print(core_categories)
 
     open_search_query = await llm_client.query(llm_query)
     print(open_search_query)
+    core_categories = await llm_client.chat(
+        messages + [{"role": "user", "content": open_search_query}]
+    )
+    print(core_categories)
 
     result = open_search_retriever.run(
         {
             "text_embedder": {"text": open_search_query},
             "bm25_retriever": {
                 "query": open_search_query,
-                "scale_score": 0 - 1,
-                "top_k": 500,
                 "filters": {
                     "field": "meta.category",
                     "operator": "in",
                     "value": json.loads(core_categories)["core_categories"],
                 },
             },
-            "ranker": {
-                "query": user_query,
-                "top_k": 500,
-            },
+            "ranker": {"query": wardrobe_query},
         }
     )
 
     # Cache the response on first request
-    _results = [doc.to_dict() for doc in result["ranker"].get("documents", []) or []]
-    redis.set(cache_key, json.dumps(_results), ex=300)  # Cache for 1 hour
-    results = paginate_documents(
-        redis, cache_key, _results, user_request.page, user_request.page_size
-    )
-    print(f"Cached response for {len(_results)} products : {cache_key}")
-    if not results:
-        return {"products": []}
-    return {
-        "products": results,
-        "info": {
-            "page": user_request.page,
-            "page_size": user_request.page_size,
-            "count": len(results),
-        },
-    }
+    results = [doc.to_dict() for doc in result["ranker"].get("documents", []) or []]
+    redis.set(cache_key, json.dumps(results), ex=3600)  # Cache for 1 hour
+    print(f"Cached response: {cache_key}")
+
+    return results

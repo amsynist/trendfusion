@@ -1,5 +1,5 @@
 # Use Python 3.11 as the base image
-FROM python:3.11
+FROM --platform=linux/amd64  python:3.11
 
 # Set the working directory
 WORKDIR /code
@@ -11,6 +11,6 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # Copy the application code
 COPY ./app /code/app
 
-# S# Command to run the FastAPI application
-CMD ["fastapi", "run", "app/main.py", "--port", "80"]
 
+# S# Command to run the FastAPI application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0","--port","80"]

@@ -1,0 +1,43 @@
+version: "3.8"
+services:
+  trendfusion-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    env_file:
+      - .env
+    restart: unless-stopped
+    container_name: trendfusion-api
+    depends_on:
+      - trendfusion-opensearch
+      - trendfusion-redis
+    networks:
+      - trendfusion-network
+
+  trendfusion-opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: trendfusion-opensearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1024m -Xmx1024m
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    restart: unless-stopped
+    networks:
+      - trendfusion-network
+
+  trendfusion-redis:
+    image: redis:latest
+    container_name: trendfusion-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - trendfusion-network
+
+networks:
+  trendfusion-network:
+    driver: bridge

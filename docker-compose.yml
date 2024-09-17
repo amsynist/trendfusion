@@ -1,6 +1,6 @@
 version: "3.8"
 services:
-  fastapi-app:
+  trendfusion-api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,3 +9,10 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    container_name: trendfusion-api
+    networks:
+      - trendfusion-network
+
+networks:
+  trendfusion-network:
+    driver: bridge

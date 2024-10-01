@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-fastapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-fastapi
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-fastapi
+    spec:
+      containers:
+        - name: fastapi
+          image: {{ .Values.FastAPI.image }} # ECR image path
+          ports:
+            - containerPort: {{ .Values.FastAPI.port }}
+          env:
+            - name: REDIS_HOST
+              value: {{ .Release.Name }}-redis
+          envFrom:
+            - configMapRef:
+                name: trendfusion-config # Reference the ConfigMap here
+      imagePullSecrets:
+        - name: ecr-registry-secret # Reference the secret here

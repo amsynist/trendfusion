@@ -1,5 +1,5 @@
-import logging
 from contextlib import asynccontextmanager
+from typing import Union
 
 import redis
 from apscheduler.jobstores.memory import MemoryJobStore
@@ -46,8 +46,19 @@ from app.external import (
     get_open_search_retriver,
 )
 
-logger = logging.getLogger("uvicorn.error")
-logger.setLevel(logging.DEBUG)
+print("INITIATED")
+scheduler = AsyncIOScheduler()
+from fastapi import FastAPI
+
+# licensing.activate(THIRD_AI_KEY)
+
+jobstores = {"default": MemoryJobStore()}
+
+# Initialize an AsyncIOScheduler with the jobstore
+scheduler = AsyncIOScheduler(jobstores=jobstores, timezone="Asia/Kolkata")
+
+
+app = FastAPI()
 
 
 @asynccontextmanager
@@ -81,23 +92,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
 from app.api import ai_search  # Import API routers
-from app.api import bodygram_api, refresh_trendicles, size_recommender
-
-# Include API routers with versioning
-app.include_router(ai_search.router, prefix="/ai/v1", tags=["Search Api's"])
-app.include_router(
-    refresh_trendicles.router, prefix="/ai/v1/internal", tags=["Internal Api's"]
-)
-app.include_router(
-    size_recommender.router, prefix="/ai/v1/products", tags=["Core Api's"]
-)
-app.include_router(
-    bodygram_api.router, prefix="/ai/v1/bodygram", tags=["Bodygram Api's"]
+from app.api import (
+    bodygram_api,
+    refresh_trendicles,
+    size_recommender,
+    wardrobe_recommender,
 )
 
-if __name__ == "__main__":
-    import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}

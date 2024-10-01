@@ -7,7 +7,6 @@ from langchain.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
-from thirdai.neural_db import NeuralDB
 
 from app.external import FA_SIZE_CHART_COLLECTION
 from app.main import app
@@ -18,8 +17,6 @@ load_dotenv()
 router = APIRouter()
 # ndb = NeuralDB()
 
-# Initialize ChatGroq model
-llm = ChatGroq(model="llama3-8b-8192", temperature=0.1, stop_sequences=["."])
 
 # Define size recommendation prompt template
 SIZE_RECOMMEND_TEMPLATE = """
@@ -32,12 +29,11 @@ You are a clothing size assistant. I'll provide you the body measurements, size 
 *Size Chart* : {size_chart}
 """
 
+# Initialize ChatGroq model
 prompt = PromptTemplate(
     input_variables=["measurements", "product_title", "size_chart"],
     template=SIZE_RECOMMEND_TEMPLATE,
 )
-
-chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
 
 
 async def fetch_product_chart(
@@ -57,6 +53,8 @@ async def size_recommend(
     redis: Redis = Depends(lambda: app.state.redis),
 ):
     """Get the recommended clothing size based on user measurements and product size chart."""
+    llm = ChatGroq(model="llama3-8b-8192", temperature=0.1, stop_sequences=["."])
+    chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
     # Check for cached response first
     cache_key = str(size_recommend_request)
     cached_result = redis.get(cache_key)

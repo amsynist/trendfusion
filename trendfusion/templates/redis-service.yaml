@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.Redis.port }}
+      targetPort: {{ .Values.Redis.port }}
+  selector:
+    app: {{ .Release.Name }}-redis

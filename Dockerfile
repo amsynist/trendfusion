@@ -1,16 +1,37 @@
-# Use Python 3.11 as the base image
-FROM --platform=linux/amd64  python:3.11
+# Stage 1: Build stage
+FROM --platform=linux/amd64 haystack:base-2.0 AS builder
 
-# Set the working directory
 WORKDIR /code
 
-# Copy the requirements file and install dependencies
-COPY ./requirements.txt /code/requirements.txt
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+ENV PIP_DEFAULT_TIMEOUT=100 
+# Allow statements and log messages to immediately appear
+ENV PYTHONUNBUFFERED=1 
+# disable a pip version check to reduce run-time & log-spam
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 
+# cache is useless in docker image, so disable to reduce image size
+ENV PIP_NO_CACHE_DIR=1 
 
-# Copy the application code
+
+
+COPY ./core-requirements.txt /code/requirements.txt
+
+# Install build dependencies
+RUN set -ex \
+    # Create a non-root user
+
+    # Upgrade the package index and install security upgrades
+    apt-get update \
+    && apt-get upgrade -y \
+    # Install dependencies
+    && pip install -r requirements.txt  --no-cache-dir  --extra-index-url https://download.pytorch.org/whl/cpu\
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*# Copy and install dependencies
+
+
 COPY ./app /code/app
 
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
 
-# S# Command to run the FastAPI application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0","--port","80"]
+

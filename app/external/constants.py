@@ -22,3 +22,7 @@ LOCAL_STORAGE = os.path.join(CURRENT_DIR, "local.json")
 # redis
 REDIS_HOST = os.environ["REDIS_HOST"]
 REDIS_PORT = os.environ["REDIS_PORT"]
+BODY_GRAM_BUCKET = os.environ["BODY_GRAM_BUCKET"]
+BODY_GRAM_ORG_ID = os.environ["BODY_GRAM_ORG_ID"]
+BODY_GRAM_API_KEY = os.environ["BODY_GRAM_API_KEY"]
+BODY_GRAM_SCAN_COLLECTION = os.environ["BODY_GRAM_SCAN_COLLECTION"]

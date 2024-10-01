@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from haystack import Pipeline
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
-from thirdai.neural_db import NeuralDB
 
 from app.external import FA_USER_COLLECTION, LOCAL_TRENDICLES_DIR, GroqLLM
 from app.main import app
@@ -67,13 +66,13 @@ def paginate_documents(redis, cache_key, results=[], page=1, page_size=10):
     start = (page - 1) * page_size
     end = start + page_size
     if not results:
-        print("HERE BLOCK")
         cached_results = redis.get(cache_key)
-        print(cached_results, ">>>><<<<")
         if cached_results:
             results = json.loads(str(cached_results))
-            return results[start:end] if len(results) > end else results
-    return results[start:end] if len(results) > end else results
+            if not results:
+                return []
+            return results[start:end] if len(results) > end else results[start:]
+    return results[start:end] if len(results) > end else results[start:]
 
 
 @router.post("/search", status_code=status.HTTP_200_OK)
@@ -120,11 +119,8 @@ async def ai_search(
     core_categories = await llm_client.chat(
         messages + [{"role": "user", "content": user_query}]
     )
-    print(llm_query)
-    print(core_categories)
 
     open_search_query = await llm_client.query(llm_query)
-    print(open_search_query)
 
     result = open_search_retriever.run(
         {
@@ -132,7 +128,7 @@ async def ai_search(
             "bm25_retriever": {
                 "query": open_search_query,
                 "scale_score": 0 - 1,
-                "top_k": 500,
+                "top_k": 200,
                 "filters": {
                     "field": "meta.category",
                     "operator": "in",

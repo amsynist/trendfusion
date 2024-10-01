@@ -10,8 +10,23 @@ services:
       - .env
     restart: unless-stopped
     container_name: trendfusion-api
+    depends_on:
+      - trendfusion-redis
     networks:
       - trendfusion-network
+
+  trendfusion-redis:
+    image: redis:latest
+    container_name: trendfusion-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - trendfusion-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
 
 networks:
   trendfusion-network:

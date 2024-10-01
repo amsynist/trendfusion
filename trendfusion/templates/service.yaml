@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-fastapi
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.FastAPI.port }}
+      targetPort: {{ .Values.FastAPI.port }}
+  selector:
+    app: {{ .Release.Name }}-fastapi

@@ -3,3 +3,4 @@ devbox.*
 .env
 __pycache__
 trendfusionai/values.yaml
+test_app/*

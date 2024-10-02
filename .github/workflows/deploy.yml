@@ -1,0 +1,22 @@
+name: Deploy FastAPI to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted # Your EC2 instance as the runner
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update kubeconfig
+        run: |
+          aws eks --region us-west-2 update-kubeconfig --name fashion-ai-eks
+
+      - name: Deploy FastAPI App
+        run: |
+          helm install  trendfusion ./trendfusionai

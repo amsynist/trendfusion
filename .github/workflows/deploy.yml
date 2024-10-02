@@ -15,7 +15,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |
-          aws eks --region us-west-2 update-kubeconfig --name fashion-ai-eks
+          aws eks --region ap-south-1 update-kubeconfig --name fashion-ai-eks
 
       - name: Deploy FastAPI App
         run: |

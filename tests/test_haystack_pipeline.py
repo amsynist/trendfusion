@@ -2,7 +2,7 @@ from haystack import Pipeline
 from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack.components.rankers import SentenceTransformersDiversityRanker
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
-
+import os 
 text_embedder = SentenceTransformersTextEmbedder(
     model="sentence-transformers/all-mpnet-base-v2"
 )
@@ -21,9 +21,9 @@ logging.basicConfig(
 )
 logging.getLogger("haystack").setLevel(logging.INFO)
 
-OPEN_SEARCH_HOST = "https://search-krakenops-products-i2db6hx4fdyavi5aw7cgzxjn5u.ap-south-1.es.amazonaws.com"
-OPEN_SEARCH_USER = "krakenops"
-OPEN_SEARCH_PASSWORD = "@Krakenops007"
+OPEN_SEARCH_USER = os.environ["OPEN_SEARCH_USER"]
+OPEN_SEARCH_PASS = os.environ["OPEN_SEARCH_PASSWORD"]
+OPEN_SEARCH_HOST = os.environ["OPEN_SEARCH_HOST"]
 
 
 def get_open_search_db() -> OpenSearchDocumentStore:

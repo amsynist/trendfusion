@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-fastapi
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: {{ .Values.FastAPI.port }}
       targetPort: {{ .Values.FastAPI.port }}

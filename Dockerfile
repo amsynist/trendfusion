@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM --platform=linux/amd64 haystack:base-2.0 AS builder
+FROM --platform=linux/amd64 deepset/haystack:base-v2.0.0-beta.7 AS builder
 
 WORKDIR /code
 

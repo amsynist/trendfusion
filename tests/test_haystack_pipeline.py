@@ -1,7 +1,10 @@
+import os
+
 from haystack import Pipeline
 from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack.components.rankers import SentenceTransformersDiversityRanker
-from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
+from haystack_integrations.document_stores.opensearch import \
+    OpenSearchDocumentStore
 
 text_embedder = SentenceTransformersTextEmbedder(
     model="sentence-transformers/all-mpnet-base-v2"
@@ -9,21 +12,19 @@ text_embedder = SentenceTransformersTextEmbedder(
 import logging
 
 from haystack.components.joiners.document_joiner import DocumentJoiner
-from haystack_integrations.components.retrievers.opensearch.bm25_retriever import (
-    OpenSearchBM25Retriever,
-)
-from haystack_integrations.components.retrievers.opensearch.embedding_retriever import (
-    OpenSearchEmbeddingRetriever,
-)
+from haystack_integrations.components.retrievers.opensearch.bm25_retriever import \
+    OpenSearchBM25Retriever
+from haystack_integrations.components.retrievers.opensearch.embedding_retriever import \
+    OpenSearchEmbeddingRetriever
 
 logging.basicConfig(
     format="%(levelname)s - %(name)s -  %(message)s", level=logging.WARNING
 )
 logging.getLogger("haystack").setLevel(logging.INFO)
 
-OPEN_SEARCH_HOST = "https://search-krakenops-products-i2db6hx4fdyavi5aw7cgzxjn5u.ap-south-1.es.amazonaws.com"
-OPEN_SEARCH_USER = "krakenops"
-OPEN_SEARCH_PASSWORD = "@Krakenops007"
+OPEN_SEARCH_USER = os.environ["OPEN_SEARCH_USER"]
+OPEN_SEARCH_PASS = os.environ["OPEN_SEARCH_PASSWORD"]
+OPEN_SEARCH_HOST = os.environ["OPEN_SEARCH_HOST"]
 
 
 def get_open_search_db() -> OpenSearchDocumentStore:

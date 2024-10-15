@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM --platform=linux/amd64 haystack:base-2.0 AS builder
+FROM --platform=linux/amd64 deepset/haystack:base-v2.6.1 AS builder
 
 WORKDIR /code
 
@@ -11,14 +11,10 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # cache is useless in docker image, so disable to reduce image size
 ENV PIP_NO_CACHE_DIR=1 
 
-
-
 COPY ./core-requirements.txt /code/requirements.txt
 
 # Install build dependencies
 RUN set -ex \
-    # Create a non-root user
-
     # Upgrade the package index and install security upgrades
     apt-get update \
     && apt-get upgrade -y \
@@ -28,6 +24,16 @@ RUN set -ex \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*# Copy and install dependencies
+
+COPY ./requirements.txt /code/requirements.txt
+# Install build dependencies
+RUN set -ex \
+    pip install -r requirements.txt  --no-cache-dir \
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*# Copy and install dependencies
+
 
 
 COPY ./app /code/app

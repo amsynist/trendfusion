@@ -31,6 +31,12 @@ TrendFusion is a core repo that provides APIs for fashion recommendations, AI-dr
 
 ### 2. Setup Environment Variables
 
+#### Requirements: 
+
+- Two requirements files: core-requirements.txt for libraries that are less likely to change,requirements.txt for dependencies that might change more frequently.
+- Caching mechanism: Docker will cache the layers where core-requirements.txt is installed. If there are no changes to the core-requirements.txt, this layer will be reused in subsequent builds.
+
+
 Create a `.env` file in the root directory with the following content:
 
 ```

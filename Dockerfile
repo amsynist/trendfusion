@@ -13,6 +13,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # cache is useless in docker image, so disable to reduce image size
 ENV PIP_NO_CACHE_DIR=1 
 
+# install core and fixed libs for easy caching
 COPY ./core-requirements.txt /code/requirements.txt
 
 # Install build dependencies

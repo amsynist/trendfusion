@@ -1,6 +1,11 @@
+import os
+
 from haystack import Pipeline
 from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack.components.rankers import SentenceTransformersDiversityRanker
+from haystack_integrations.document_stores.opensearch import \
+    OpenSearchDocumentStore
+
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
 import os 
 text_embedder = SentenceTransformersTextEmbedder(
@@ -9,12 +14,10 @@ text_embedder = SentenceTransformersTextEmbedder(
 import logging
 
 from haystack.components.joiners.document_joiner import DocumentJoiner
-from haystack_integrations.components.retrievers.opensearch.bm25_retriever import (
-    OpenSearchBM25Retriever,
-)
-from haystack_integrations.components.retrievers.opensearch.embedding_retriever import (
-    OpenSearchEmbeddingRetriever,
-)
+from haystack_integrations.components.retrievers.opensearch.bm25_retriever import \
+    OpenSearchBM25Retriever
+from haystack_integrations.components.retrievers.opensearch.embedding_retriever import \
+    OpenSearchEmbeddingRetriever
 
 logging.basicConfig(
     format="%(levelname)s - %(name)s -  %(message)s", level=logging.WARNING

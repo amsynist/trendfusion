@@ -6,6 +6,8 @@ from haystack.components.rankers import SentenceTransformersDiversityRanker
 from haystack_integrations.document_stores.opensearch import \
     OpenSearchDocumentStore
 
+from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
+import os 
 text_embedder = SentenceTransformersTextEmbedder(
     model="sentence-transformers/all-mpnet-base-v2"
 )

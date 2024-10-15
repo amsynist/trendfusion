@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-redis
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: {{ .Values.Redis.port }}
       targetPort: {{ .Values.Redis.port }}

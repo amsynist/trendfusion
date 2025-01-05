@@ -1,5 +1,5 @@
 import base64
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from bson import ObjectId
 from fastapi import File, UploadFile
@@ -105,7 +105,22 @@ class AISearchRequest(BaseModel):
     def __str__(self):
         return f"ai_search-{self.user_id}-{self.user_query.strip()}-{self.include_trendicles}"
 
+class AIStyleReasoner(BaseModel):
+    user_id: str
+    product_id: str
 
+    @field_validator("user_id")
+    @classmethod
+    def validate_user_id(cls, v):
+        try:
+            ObjectId(v)
+            return v
+        except Exception as e:
+            raise ValueError("`user_id` must be exact 12 characters in length") from e
+
+    def __str__(self):
+        return f"ai_search-{self.user_id}-{self.user_query.strip()}-{self.include_trendicles}"
+    
 class UserAttrs(BaseModel):
     _id: ObjectId
     skin_color: Optional[str] = Field(default="NA")
@@ -124,4 +139,24 @@ class UserAttrs(BaseModel):
         Age            : {self.age}
         Facial Attrs   : {''.join(self.facial_attrs) if self.facial_attrs else 'NA'}
         Phsycial Attrs : {''.join(self.physical_attrs) if self.physical_attrs else 'NA'}
+        """
+
+class ProductDetails(BaseModel):
+    _id: ObjectId
+    name: Optional[str] = Field(default="NA")
+    description: Optional[str] = None  # Defaults to None if not provided
+    colors: Optional[Union[str, list]] = None  # Defaults to None if not provided
+    category: Optional[str] = None  # Defaults to None if not provided
+    brand: Optional[str] = None
+    tags: Optional[Union[str, list]] = None
+
+    def to_str(self):
+        return f"""
+        ----------- User Attributes ----------
+        Product Name            : {self.name}
+        Product Description     : {self.description}
+        Color                   : {", ".join(self.colors) if isinstance(self.colors, list) else self.colors}
+        Category                : {self.category}
+        brand                   : {self.brand}
+        tags                    : {", ".join(self.tags) if isinstance(self.tags, list) else self.tags}
         """

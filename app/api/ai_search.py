@@ -6,21 +6,16 @@ from haystack import Pipeline
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
 
-from app.external import FA_USER_COLLECTION, LOCAL_TRENDICLES_DIR, GroqLLM
+from app.external import FA_USER_COLLECTION, FA_PRODUCT_COLLECTION ,LOCAL_TRENDICLES_DIR, GroqLLM
 from app.main import app
-from app.models import AISearchRequest, UserAttrs
+from app.models import AISearchRequest, UserAttrs, AIStyleReasoner, ProductDetails
+from app.external.llm.prompt import *
 
 router = APIRouter()
 # ndb = NeuralDB()
 
-AI_SEARCH_CORE_PROMPT = """
-You are an expert men's only fashion recommender. 
-You have to recommend clothes for the user based on their profile and user data given, and you get optional trend-related information which you could use for generating query.
-Return the proper description of the cloth in less than 20 words. 
-The description must contain category, color, and pattern only. 
-Please return answer in query to search in OpenSearch for listing products to user and ensure your response only contains the query and nothing else.
-"""
 
+'''
 messages = [
     {
         "role": "system",
@@ -37,6 +32,7 @@ messages = [
         "content": '{"core_categories": ["Fashion", "Clothing", "Shirts", "Solid Pattern", "Formal Wear"]}',
     },
 ]
+'''
 
 
 async def fetch_user_attrs(
@@ -50,6 +46,16 @@ async def fetch_user_attrs(
         )
     return UserAttrs(**user_attrs).to_str()
 
+async def fetch_product_details(
+    product_id: str, db: AsyncIOMotorDatabase, collection_name: str
+) -> str:
+    collection = db[collection_name]
+    product_details = await collection.find_one({"_id": ObjectId(product_id)})
+    if not product_details:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="product not found"
+        )
+    return ProductDetails(**product_details).to_str()
 
 def fetch_trend_knowledge(query: str) -> str:
     _ndb = ndb.from_checkpoint(LOCAL_TRENDICLES_DIR)
@@ -85,13 +91,13 @@ async def ai_search(
 ):
     user_id = user_request.user_id
     user_query = user_request.user_query
-
     # Check for cached response first
     cache_key = str(user_request)
     # check for cache if results are already loaded else do a fresh query
     if results := paginate_documents(
         redis, cache_key, [], user_request.page, user_request.page_size
     ):
+        print(results)
         print(f"Cached response found: {cache_key}")
         return {
             "products": results,
@@ -109,38 +115,74 @@ async def ai_search(
     trends = "No Trend Knowledge"
     if user_request.include_trendicles:
         trends = fetch_trend_knowledge(user_query + user_attrs)
+    
 
     llm_client.system_prompt = AI_SEARCH_CORE_PROMPT
-    llm_query = f"""
-    {user_attrs}
-    Trend Knowledge Base: {trends}
-    User Query: {user_query}
-    """
     core_categories = await llm_client.chat(
-        messages + [{"role": "user", "content": user_query}]
+        AI_SEARCH_CORE_PROMPT + [{"role": "user", "content": user_query}]
     )
+    core_categories = json.loads(core_categories)
+    print(core_categories)
 
-    open_search_query = await llm_client.query(llm_query)
+    if core_categories.get("data",{}).get("category",None):
+        llm_query = f"""
+        {user_attrs}
+        Extracted Features: {json.dumps(core_categories)}
+        User Query: {user_query}
+        """
+        llm_client.system_prompt = FEATURE_GENERATOR_PROMPT
 
-    result = open_search_retriever.run(
+        open_search_query = await llm_client.chat(
+            FEATURE_GENERATOR_PROMPT + [{"role": "user", "content": llm_query}]
+            )
+        open_search_query = json.loads(open_search_query)
+        print(open_search_query)
+
+        core_category = open_search_query["core_categories"]
+        # open_search_query = str(open_search_query.get("data"))
+        result = open_search_retriever.run(
         {
-            "text_embedder": {"text": open_search_query},
+            "text_embedder": {"text": user_query},
             "bm25_retriever": {
-                "query": open_search_query,
+                "query": user_query,
                 "scale_score": 0 - 1,
                 "top_k": 200,
-                "filters": {
-                    "field": "meta.category",
-                    "operator": "in",
-                    "value": json.loads(core_categories)["core_categories"],
+                # "filters": {
+                #     "field": "category",
+                #     "operator": "in",
+                #     "value": core_categories["core_categories"],
+                # }, 
+                "filters":{
+                    "operator": "OR",
+                    "conditions": [
+                        {"field": "meta.category", "operator": "in", "value": core_categories["core_categories"]},
+                        {"field": "meta.brand", "operator": "in", "value": [open_search_query.get("data").get("brand")]},
+                        {"field": "meta.colors", "operator": "in", "value": [open_search_query.get("data").get("color")]},
+
+                    ],
                 },
+                "custom_query":{
+                            "query": {
+                                "bool": {
+                                    "must": [{"multi_match": {
+                                        "query": user_query,                 
+                                        "type": "most_fields",
+                                        "fields": core_categories["weightage"]}}],          
+                                }
+                            }
+                        } 
             },
             "ranker": {
                 "query": user_query,
                 "top_k": 500,
             },
         }
-    )
+    )       
+
+    
+    else:
+        result = {"ranker":{}}
+    
 
     # Cache the response on first request
     _results = [doc.to_dict() for doc in result["ranker"].get("documents", []) or []]
@@ -152,10 +194,37 @@ async def ai_search(
     if not results:
         return {"products": []}
     return {
-        "products": results,
+        "products": sorted(results, key=lambda x: x["score"], reverse=True),
         "info": {
             "page": user_request.page,
             "page_size": user_request.page_size,
             "count": len(results),
         },
+    }
+
+
+@router.post("/style_reasoner", status_code=status.HTTP_200_OK)
+async def style_reasoner(user_request: AIStyleReasoner,
+    fa_db: AsyncIOMotorDatabase = Depends(lambda: app.state.fa_db),
+    llm_client: GroqLLM = Depends(lambda: app.state.llm_client),
+    open_search_retriever: Pipeline = Depends(lambda: app.state.open_search_retriever),
+    redis: Redis = Depends(lambda: app.state.redis),):
+    
+    user_id = user_request.user_id
+    product_id = user_request.product_id
+    print(user_id,product_id)
+
+    product_details = await fetch_product_details(product_id, fa_db, FA_PRODUCT_COLLECTION)
+    user_attrs = await fetch_user_attrs(user_id, fa_db, FA_USER_COLLECTION)
+    llm_client.system_prompt = STYLE_REASONER_PROMPT
+    core_recommendations = await llm_client.chat(
+        STYLE_REASONER_PROMPT + [{"role": "user", "content": 
+                                  f"""{user_attrs} + "\n\n" + {product_details}"""}],
+    )
+    core_recommendations = json.loads(core_recommendations)
+    print(core_recommendations)
+    return {
+        "user_id": user_id,
+        "Product_id":product_id,
+        "Recommendations":core_recommendations["recommendations"]
     }
